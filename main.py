@@ -8,8 +8,11 @@ import my_view
 
 def init_view():
     print(type(ui.textBrowser))
-    ui.textBrowser.setAcceptDrops(True)  # 开启拖动
+    # ui.textBrowser.setAcceptDrops(True)  # 开启拖动
 
+
+# PyQt官方API文档
+# https://www.riverbankcomputing.com/static/Docs/PyQt5/module_index.html
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

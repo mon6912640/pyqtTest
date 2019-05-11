@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="icon">
+    <file>img/clipping_picture.png</file>
     <file>img/icon.png</file>
   </qresource>
 </RCC>
