@@ -135,7 +135,7 @@ EventCenterAsync: EventDispatcherAsync = EventDispatcherAsync()
 
 
 ########################################################################
-class CallBackVo():
+class CallBackVo:
     uid = 0
     type = ''
     data = None
@@ -143,13 +143,18 @@ class CallBackVo():
     priority = 0
 
 
-class TypeVo():
+class TypeVo:
     type = ''
     calling_value = 0
-    callback_list: List[CallBackVo] = []
+    callback_list: List[CallBackVo] = None
+
+    def __init__(self):
+        # 这里有个坑，引用类型的实例变量，不能在定义时候初始化，一定需要在初始化函数里面初始化
+        # 否则多个实例引用的都是同一个内存的引用类型
+        self.callback_list = []
 
 
-class EventDispatcherSync():
+class EventDispatcherSync:
     """
     同步的事件发送器
     """
@@ -160,7 +165,7 @@ class EventDispatcherSync():
         pass
 
     # ----------------------------------------------------------------------
-    def get_callback_vo_by_uid(self, p_uid) -> TypeVo:
+    def get_callback_vo_by_uid(self, p_uid) -> CallBackVo:
         if p_uid in self.__callback_vo_map:
             return self.__callback_vo_map[p_uid]
 
@@ -186,6 +191,7 @@ class EventDispatcherSync():
         t_vo.type = p_type
         t_vo.uid = t_uid
         t_vo.callback = p_handler
+        t_vo.priority = p_priority
 
         t_type_vo = self.get_type_vo_by_type(p_type)
         if not t_type_vo:

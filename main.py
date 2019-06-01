@@ -1,21 +1,51 @@
 import argparse
 import sys
+from pathlib import Path
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWidgets import QMainWindow
 
+import TinyPngTool
 import mainGUI2
 from common import *
 
 
 class MyQMainWindow(QMainWindow):
+    __thread: Thread = None
+    __queue: Queue = None
+    __active = False
+
     def __init__(self):
         super(MyQMainWindow, self).__init__()
+        self.__queue = Queue()
+        self.__thread = Thread(target=self.__run)
+
+    def __run(self):
+        while self.__active is True:
+            try:
+                list_path = self.__queue.get(block=True, timeout=1)
+                TinyPngTool.run_by_list(list_path, './compress')
+            except Empty:
+                pass
+
+    def thread_start(self, p_flag: bool):
+        if not self.__thread:
+            return
+        if p_flag:
+            if self.__active:
+                return
+            self.__active = True
+            self.__thread.start()
+        else:
+            if not self.__active:
+                return
+            self.__active = False
+            self.__thread.join()
 
     def dragEnterEvent(self, event: QDragEnterEvent):
-        EventCenterSync.send_event(EVENT_SHOW_LOG, '拖进来')
+        # EventCenterSync.send_event(EVENT_SHOW_LOG, '拖进来')
         mime_data: QMimeData = event.mimeData()
         if mime_data.hasFormat('text/uri-list'):
             event.acceptProposedAction()
@@ -29,9 +59,23 @@ class MyQMainWindow(QMainWindow):
     def dropEvent(self, event: QDropEvent):
         mime_data: QMimeData = event.mimeData()
         files: List[QUrl] = mime_data.urls()
+        # EventCenterSync.send_event(EVENT_SHOW_LOG, '放下')
+        list_source = []
         for url in files:
-            print(url.url())
-        EventCenterSync.send_event(EVENT_SHOW_LOG, '放下')
+            path_source = Path(url.toLocalFile())
+            # print(path_source)
+            # print(path_source.absolute())
+            # print(path_source.exists())
+            if not path_source.exists():
+                continue
+            if path_source.is_file():
+                if path_source.suffix == '.jpg' or path_source.suffix == '.png':
+                    list_source.append(path_source.absolute())
+            elif path_source.is_dir():
+                list_source.append(path_source.absolute())
+        if len(list_source) > 0:
+            self.__queue.put(list_source)
+            self.thread_start(True)
 
     def closeEvent(self, event):
         """
@@ -41,6 +85,7 @@ class MyQMainWindow(QMainWindow):
         """
         print('程序退出')
         # EventCenterAsync.stop()  # 程序退出时候停止全局事件管理器的线程
+        self.thread_start(False)
 
 
 class MainWinGUI(mainGUI2.Ui_MainWindow):
@@ -56,16 +101,18 @@ class MainWinGUI(mainGUI2.Ui_MainWindow):
         self.pushButton.clicked.connect(self.btn_click)  # 按钮点击处理
 
     def handle_init(self, event: EventVo):
+        # print('handle_init == '+ event.type)
         pass
 
     def handle_show_log(self, event: EventVo):
+        # print('handle_show_log == '+event.type)
         self.show_log(event.data)
+        pass
 
-    def show_log(self, p_str):
-        self.textBrowser.append(p_str)
+    def show_log(self, p_str:str):
+        self.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
 
     def btn_click(self):
-        print('fuck you')
         ins_app = QApplication.instance()
         ins_app.quit()
 
@@ -75,8 +122,8 @@ class MainWinGUI(mainGUI2.Ui_MainWindow):
 
 
 def init_view():
-    print(type(ui.textBrowser))
     # ui.textBrowser.setAcceptDrops(True)  # 开启拖动
+    pass
 
 
 # PyQt官方API文档
