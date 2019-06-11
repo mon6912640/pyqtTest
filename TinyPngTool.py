@@ -22,6 +22,8 @@ cache_path = './cache'
 proxy = ''
 # 数据库打开标识
 db_open = False
+# 覆盖源文件的标识
+override = False
 
 # 压缩图片的key
 online_key_list = [
@@ -40,6 +42,8 @@ with open('./config.json', 'r', encoding='utf-8') as f:
         to_path = config['outputPath']
     if 'proxy' in config:
         proxy = config['proxy']
+    if 'override' in config:
+        override = config['override']
 
 if proxy:
     """
@@ -209,6 +213,9 @@ def handle_file(source_path, target_path):
 def run(p_source_path, p_output_path):
     path_source = Path(p_source_path)
     path_output = Path(p_output_path)
+
+    if path_source.is_file():
+        pass
 
     if path_output.exists() and not path_output.is_dir():
         show_log('指定的输出路径不是一个目录，程序退出')

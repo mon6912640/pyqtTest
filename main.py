@@ -5,10 +5,11 @@ from pathlib import Path
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtWidgets import QMainWindow, QFrame
 
 import TinyPngTool
 import mainGUI2
+import cleanGUI
 from common import *
 
 
@@ -18,9 +19,26 @@ class MyQMainWindow(QMainWindow):
     __active = False
 
     def __init__(self):
-        super(MyQMainWindow, self).__init__()
+        QMainWindow.__init__(self)
+
         self.__queue = Queue()
         self.__thread = Thread(target=self.__run)
+
+        self.view = mainGUI2.Ui_MainWindow()
+        self.view.setupUi(self)
+        self.setAcceptDrops(True)
+
+        EventCenterSync.add_event(EVENT_SHOW_LOG, self.handle_show_log)
+        EventCenterSync.add_event(EVENT_MAIN_INIT, self.handle_init)
+
+        self.view.cbOverride.setChecked(TinyPngTool.override)
+
+        self.view.textBrowser.textChanged.connect(self.scroll_to_end)
+        self.view.pushButton.clicked.connect(self.on_btn_click)  # 按钮点击处理
+        self.view.cbOverride.stateChanged.connect(self.__on_overide_state_change)
+
+        self.view.textBrowser.setHtml('程序初始化完成')
+        show_log('请拖动文件/文件夹到此程序界面中进行压缩')
 
     def __run(self):
         while self.__active is True:
@@ -44,8 +62,32 @@ class MyQMainWindow(QMainWindow):
             self.__active = False
             self.__thread.join()
 
+    def handle_init(self, event: EventVo):
+        # print('handle_init == '+ event.type)
+        pass
+
+    def handle_show_log(self, event: EventVo):
+        # print('handle_show_log == '+event.type)
+        self.show_log(event.data)
+        pass
+
+    def show_log(self, p_str: str):
+        self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
+
+    def on_btn_click(self):
+        ins_app = QApplication.instance()
+        ins_app.quit()
+
+    def __on_overide_state_change(self, p_state):
+        t_isChecked = self.view.cbOverride.isChecked()
+        TinyPngTool.override = t_isChecked
+        show_log('复选框点击 {0}'.format(t_isChecked))
+
+    def scroll_to_end(self):
+        # 滚动到最后的处理
+        self.view.textBrowser.moveCursor(QTextCursor.End)
+
     def dragEnterEvent(self, event: QDragEnterEvent):
-        # EventCenterSync.send_event(EVENT_SHOW_LOG, '拖进来')
         mime_data: QMimeData = event.mimeData()
         if mime_data.hasFormat('text/uri-list'):
             event.acceptProposedAction()
@@ -88,42 +130,46 @@ class MyQMainWindow(QMainWindow):
         self.thread_start(False)
 
 
-class MainWinGUI(mainGUI2.Ui_MainWindow):
-    def setupUi(self, MainWindow: MyQMainWindow):
-        super(MainWinGUI, self).setupUi(MainWindow)
-        MainWindow.setAcceptDrops(True)
-        self.textBrowser.setHtml('程序初始化')
+class CleanView(QFrame):
+    def __init__(self):
+        QFrame.__init__(self)
 
-        EventCenterSync.add_event(EVENT_SHOW_LOG, self.handle_show_log)
-        EventCenterSync.add_event(EVENT_MAIN_INIT, self.handle_init)
+        self.view = cleanGUI.Ui_Frame()
+        self.view.setupUi(self)
+        self.setAcceptDrops(True)
 
-        self.textBrowser.textChanged.connect(self.scroll_to_end)
-        self.pushButton.clicked.connect(self.btn_click)  # 按钮点击处理
-
-    def handle_init(self, event: EventVo):
-        # print('handle_init == '+ event.type)
-        pass
-
-    def handle_show_log(self, event: EventVo):
-        # print('handle_show_log == '+event.type)
-        self.show_log(event.data)
-        pass
-
-    def show_log(self, p_str:str):
-        self.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
-
-    def btn_click(self):
-        ins_app = QApplication.instance()
-        ins_app.quit()
+        self.view.textBrowser.textChanged.connect(self.scroll_to_end)
+        self.view.textBrowser.setHtml('请拖动根目录文件夹进行批量删除带@tiny后缀的文件')
 
     def scroll_to_end(self):
         # 滚动到最后的处理
-        self.textBrowser.moveCursor(QTextCursor.End)
+        self.view.textBrowser.moveCursor(QTextCursor.End)
 
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        mime_data: QMimeData = event.mimeData()
+        if mime_data.hasFormat('text/uri-list'):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
 
-def init_view():
-    # ui.textBrowser.setAcceptDrops(True)  # 开启拖动
-    pass
+    def dropEvent(self, event: QDropEvent):
+        mime_data: QMimeData = event.mimeData()
+        files: List[QUrl] = mime_data.urls()
+        list_source = []
+        for url in files:
+            path_source = Path(url.toLocalFile())
+            # print(path_source)
+            # print(path_source.absolute())
+            # print(path_source.exists())
+            if not path_source.exists():
+                continue
+            if path_source.is_dir():
+                list_source.append(path_source.absolute())
+                self.show_log('测试测试测试')
+
+    def show_log(self, p_str: str):
+        self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
+
 
 
 # PyQt官方API文档
@@ -141,14 +187,20 @@ if __name__ == '__main__':
     print('output_path = ' + args.output)
 
     main_win = MyQMainWindow()
-    ui = MainWinGUI()
-    ui.setupUi(main_win)
     main_win.setWindowTitle('fuck you')
     main_win.setWindowIcon(QIcon(':/icon/img/icon.png'))
-
-    init_view()
-
     main_win.show()
+
+    clean_view = CleanView()
+
+
+    def open_clean_view():
+        clean_view.show()
+
+
+    main_win.view.btnClean.clicked.connect(open_clean_view)
+
+    clean_view.setWindowTitle('清理工具')
 
     # 广播初始化事件
     EventCenterSync.send_event(EVENT_MAIN_INIT)
