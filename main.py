@@ -63,13 +63,11 @@ class MyQMainWindow(QMainWindow):
             self.__thread.join()
 
     def handle_init(self, event: EventVo):
-        # print('handle_init == '+ event.type)
         pass
 
     def handle_show_log(self, event: EventVo):
-        # print('handle_show_log == '+event.type)
-        self.show_log(event.data)
-        pass
+        if event.data['type'] == LOG_TYPE_MAIN:
+            self.show_log(event.data['str'])
 
     def show_log(self, p_str: str):
         self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
@@ -139,7 +137,13 @@ class CleanView(QFrame):
         self.setAcceptDrops(True)
 
         self.view.textBrowser.textChanged.connect(self.scroll_to_end)
-        self.view.textBrowser.setHtml('请拖动根目录文件夹进行批量删除带@tiny后缀的文件')
+        self.view.textBrowser.setHtml('请拖动根目录文件夹进行批量删除带@source后缀的文件')
+
+        EventCenterSync.add_event(EVENT_SHOW_LOG, self.handle_show_log)
+
+    def handle_show_log(self, event: EventVo):
+        if event.data['type'] == LOG_TYPE_CLEAN:
+            self.show_log(event.data['str'])
 
     def scroll_to_end(self):
         # 滚动到最后的处理
@@ -158,22 +162,22 @@ class CleanView(QFrame):
         list_source = []
         for url in files:
             path_source = Path(url.toLocalFile())
-            # print(path_source)
-            # print(path_source.absolute())
-            # print(path_source.exists())
             if not path_source.exists():
                 continue
-            if path_source.is_dir():
-                list_source.append(path_source.absolute())
-                self.show_log('测试测试测试')
+            t_path = path_source.absolute()
+            list_source.append(t_path)
+        for t_path in list_source:
+            TinyPngTool.clean(t_path)
 
     def show_log(self, p_str: str):
         self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
 
 
-
 # PyQt官方API文档
 # https://www.riverbankcomputing.com/static/Docs/PyQt5/module_index.html
+
+# pyqt进度条范例
+# https://zhuanlan.zhihu.com/p/31109561
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

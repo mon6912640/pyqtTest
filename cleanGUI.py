@@ -11,10 +11,12 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Frame(object):
     def setupUi(self, Frame):
         Frame.setObjectName("Frame")
-        Frame.resize(400, 300)
+        Frame.resize(445, 318)
+        self.gridLayout = QtWidgets.QGridLayout(Frame)
+        self.gridLayout.setObjectName("gridLayout")
         self.textBrowser = QtWidgets.QTextBrowser(Frame)
-        self.textBrowser.setGeometry(QtCore.QRect(0, 0, 401, 301))
         self.textBrowser.setObjectName("textBrowser")
+        self.gridLayout.addWidget(self.textBrowser, 0, 0, 1, 1)
 
         self.retranslateUi(Frame)
         QtCore.QMetaObject.connectSlotsByName(Frame)

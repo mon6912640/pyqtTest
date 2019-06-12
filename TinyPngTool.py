@@ -56,10 +56,10 @@ online_key_list_iter = iter(online_key_list)
 online_key = next(online_key_list_iter)
 
 
-def show_log(p_str, end: str = '\n', p_output: bool = True):
+def show_log(p_str, end: str = '\n', p_output: bool = True, p_type: str = common.LOG_TYPE_MAIN):
     print(p_str, end=end)
     if p_output:
-        common.show_log(p_str)
+        common.show_log(p_str, p_type=p_type)
 
 
 # 在线压缩
@@ -117,13 +117,13 @@ def compress_online(source_path, output_path):
 
 def cal_md5(file_path) -> str:
     with open(file_path, 'rb') as f:
-        hash = hashlib.md5()
+        hash_value = hashlib.md5()
         while 1:
             b = f.read(128)
             if not b:
                 break
-            hash.update(b)
-    md5_str = hash.hexdigest()
+            hash_value.update(b)
+    md5_str = hash_value.hexdigest()
     return md5_str
 
 
@@ -207,7 +207,42 @@ def handle_file(source_path, target_path):
                 # 数据库没有记录，这插入新数据
                 cr.execute('insert into md5 (id, md5_value) values(?,?)', (source_md5, output_md5))
                 pass
+
+    if override:
+        # 先将源文件在当前目录下重命名
+        repeat_cout = 0
+        path_rename = None
+        while path_rename is None or path_rename.exists():
+            repeat_cout += 1
+            path_rename = source_path.with_name(source_path.stem + '@source' * repeat_cout + source_path.suffix)
+        source_path.rename(path_rename)
+        if target_path.exists():
+            # target_path.rename(source_path)
+            shutil.move(str(target_path), source_path.parent)
     return True
+
+
+def clean(p_path):
+    """
+    清理
+    :param p_path:
+    :return:
+    """
+    path_source = Path(p_path)
+    path_list = []
+    if path_source.is_file():
+        if path_source.suffix == '.jpg' or path_source.suffix == '.png':
+            if '@source' in path_source.name:
+                path_list.append(path_source)
+    elif path_source.is_dir():
+        list_file = sorted(path_source.rglob('*.*'))
+        for v in list_file:
+            if v.suffix == '.jpg' or v.suffix == '.png':
+                if '@source' in v.name:
+                    path_list.append(v)
+    for v in path_list:
+        v.unlink()
+        show_log('删除文件 {0}'.format(str(v)), p_type=common.LOG_TYPE_CLEAN)
 
 
 def run(p_source_path, p_output_path):
