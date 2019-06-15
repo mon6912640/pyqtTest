@@ -217,7 +217,6 @@ def handle_file(source_path, target_path):
             path_rename = source_path.with_name(source_path.stem + '@source' * repeat_cout + source_path.suffix)
         source_path.rename(path_rename)
         if target_path.exists():
-            # target_path.rename(source_path)
             shutil.move(str(target_path), source_path.parent)
     return True
 
@@ -249,9 +248,6 @@ def run(p_source_path, p_output_path):
     path_source = Path(p_source_path)
     path_output = Path(p_output_path)
 
-    if path_source.is_file():
-        pass
-
     if path_output.exists() and not path_output.is_dir():
         show_log('指定的输出路径不是一个目录，程序退出')
         return
@@ -271,19 +267,23 @@ def run(p_source_path, p_output_path):
 
     create_db()  # 创建数据库
 
-    if path_source.is_file():
+    if path_source.is_file() \
+            and (path_source.suffix == '.png' or path_source.suffix == '.jpg') \
+            and '@source' not in path_source.name:
         path_target = path_output / path_source.name
         if handle_file(path_source, path_target):
             file_count += 1
+        common.send_file_complete()  # 标记完成
         pass
     elif path_source.is_dir():
         list_file = sorted(path_source.rglob('*.*'))
         for v in list_file:
-            if v.suffix == '.png' or v.suffix == '.jpg':
+            if (v.suffix == '.png' or v.suffix == '.jpg') and '@source' not in v.name:
                 path_rel = v.relative_to(path_source)
                 path_target = path_output / path_source.name / path_rel
                 if handle_file(v, path_target):
                     file_count += 1
+                common.send_file_complete()  # 标记完成
         pass
 
     end = time.time()

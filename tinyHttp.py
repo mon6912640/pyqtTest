@@ -17,11 +17,11 @@ def compress(p_source, p_output):
     source = p_source
     output = p_output
     if not source:
-        raise Error.create('不存在源文件', '参数错误', 'unkonwn')
+        raise Error.create('不存在源文件', '参数错误', 0)
     if not output:
-        raise Error.create('没有指定输出路径', '参数错误', 'unkonwn')
+        raise Error.create('没有指定输出路径', '参数错误', 0)
     if not key:
-        raise Error.create('没有指定api key', '参数错误', 'unkonwn')
+        raise Error.create('没有指定api key', '参数错误', 0)
     path_source = Path(source)
     img_bytes = path_source.read_bytes()
     key_prefix = 'api:'
@@ -34,7 +34,7 @@ def compress(p_source, p_output):
         r_post = requests.post('https://api.tinify.com/shrink', headers=header, data=img_bytes)
     except Exception as err:
         # 捕获异常
-        raise Error.create('连接异常 {0}'.format(err), 'post error', 'unkonwn')
+        raise Error.create('连接异常 {0}'.format(err), 'post error', 0)
     else:
         pass
 
