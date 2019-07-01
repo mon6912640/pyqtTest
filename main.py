@@ -8,14 +8,15 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWidgets import QMainWindow, QFrame
 
 import TinyPngTool
-import mainGUI2
 import cleanGUI
+import mainGUI2
+import aboutGUI
 from common import *
-import threading
 
 
 class MyThead(QThread):
     __queue: Queue = None
+    signal: pyqtSignal = pyqtSignal(str)
 
     # 关于pyqt中线程卡死的问题
     # https://www.reddit.com/r/learnpython/comments/7or35q/questionpyqt5threading_my_gui_crash_whit_no_error/
@@ -23,6 +24,10 @@ class MyThead(QThread):
         super(MyThead, self).__init__()
         self.__active = False
         self.__queue = Queue()
+        EventCenterSync.add_event(EVENT_FILE_COMPLETE, self.handle_file_complete)
+
+    def handle_file_complete(self, event: EventVo):
+        self.signal.emit('fuck')
 
     def run(self):
         while self.__active:
@@ -65,7 +70,7 @@ class MyQMainWindow(QMainWindow):
 
         EventCenterSync.add_event(EVENT_SHOW_LOG, self.handle_show_log)
         EventCenterSync.add_event(EVENT_MAIN_INIT, self.handle_init)
-        EventCenterSync.add_event(EVENT_FILE_COMPLETE, self.handle_file_complete)
+        self.__qtthread.signal.connect(self.handle_file_complete)
 
         self.view.cbOverride.setChecked(TinyPngTool.override)
 
@@ -74,11 +79,12 @@ class MyQMainWindow(QMainWindow):
         self.view.progressBar.setValue(0)
 
         self.view.textBrowser.textChanged.connect(self.scroll_to_end)
-        self.view.pushButton.clicked.connect(self.on_btn_click)  # 按钮点击处理
+        self.view.btnAbout.clicked.connect(self.on_btn_about_click)  # 按钮点击处理
         self.view.cbOverride.stateChanged.connect(self.__on_overide_state_change)
 
         self.view.textBrowser.setHtml('程序初始化完成')
         show_log('请拖动文件/文件夹到此程序界面中进行压缩')
+        self.view.tfPg.setText('0/0')
 
     def handle_init(self, event: EventVo):
         pass
@@ -90,21 +96,22 @@ class MyQMainWindow(QMainWindow):
     def show_log(self, p_str: str):
         self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
 
-    def handle_file_complete(self, event: EventVo):
+    def handle_file_complete(self):
         self.__file_complete_count += 1
-        print(event.type, self.__file_complete_count, self.__file_total_count)
         t_value = self.__file_complete_count
-        temp = threading.enumerate()
-        for v in temp:
-            print(v)
-        print('当前线程数量=', len(temp))
+        # temp = threading.enumerate()
+        # for v in temp:
+        #     print(v)
+        # print('当前线程数量=', len(temp))
         self.view.progressBar.setValue(t_value)
+        self.view.tfPg.setText('{0}/{1}'.format(self.__file_complete_count, self.__file_total_count))
         QApplication.processEvents()
         pass
 
-    def on_btn_click(self):
-        ins_app = QApplication.instance()
-        ins_app.quit()
+    def on_btn_about_click(self):
+        # ins_app = QApplication.instance()
+        # ins_app.quit()
+        pass
 
     def __on_overide_state_change(self, p_state):
         t_isChecked = self.view.cbOverride.isChecked()
@@ -151,6 +158,7 @@ class MyQMainWindow(QMainWindow):
         if len(list_source) > 0:
             self.view.progressBar.setMaximum(self.__file_total_count)
             self.view.progressBar.reset()
+            self.view.tfPg.setText('{0}/{1}'.format(0, self.__file_total_count))
             self.__qtthread.add(list_source)
             self.__qtthread.thread_start(True)
 
@@ -163,6 +171,15 @@ class MyQMainWindow(QMainWindow):
         print('程序退出')
         # EventCenterAsync.stop()  # 程序退出时候停止全局事件管理器的线程
         self.__qtthread.thread_start(False)
+        self.__qtthread.signal.disconnect(self.handle_file_complete)
+
+
+class AboutView(QFrame):
+    def __init__(self):
+        QFrame.__init__(self)
+
+        self.view = aboutGUI.Ui_Frame()
+        self.view.setupUi(self)
 
 
 class CleanView(QFrame):
@@ -228,18 +245,24 @@ if __name__ == '__main__':
     print('output_path = ' + args.output)
 
     main_win = MyQMainWindow()
-    main_win.setWindowTitle('fuck you')
-    main_win.setWindowIcon(QIcon(':/icon/img/icon.png'))
+    main_win.setWindowTitle('图片压缩工具')
+    main_win.setWindowIcon(QIcon(':/icon/img/clipping_picture.png'))
     main_win.show()
 
     clean_view = CleanView()
+    about_view = AboutView()
 
 
     def open_clean_view():
         clean_view.show()
 
 
+    def open_about_view():
+        about_view.show()
+
+
     main_win.view.btnClean.clicked.connect(open_clean_view)
+    main_win.view.btnAbout.clicked.connect(open_about_view)
 
     clean_view.setWindowTitle('清理工具')
 
