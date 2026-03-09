@@ -115,3 +115,4 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+/.claude/settings.local.json
