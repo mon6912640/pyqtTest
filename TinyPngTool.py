@@ -24,6 +24,8 @@ proxy = ''
 db_open = False
 # 覆盖源文件的标识
 override = False
+# 备份原文件的标识
+backup = False
 
 # 错误等待重试时间间隔
 ERR_WAIT_TIME = 1
@@ -47,6 +49,8 @@ with open('./config.json', 'r', encoding='utf-8') as f:
         proxy = config['proxy']
     if 'override' in config:
         override = config['override']
+    if 'backup' in config:
+        backup = config['backup']
 
 if proxy:
     """
@@ -219,13 +223,17 @@ def handle_file(source_path, target_path):
                 pass
 
     if override:
-        # 先将源文件在当前目录下重命名
-        repeat_cout = 0
-        path_rename = None
-        while path_rename is None or path_rename.exists():
-            repeat_cout += 1
-            path_rename = source_path.with_name(source_path.stem + '@source' * repeat_cout + source_path.suffix)
-        source_path.rename(path_rename)
+        if backup:
+            # 先将源文件在当前目录下重命名为 @source 备份
+            repeat_cout = 0
+            path_rename = None
+            while path_rename is None or path_rename.exists():
+                repeat_cout += 1
+                path_rename = source_path.with_name(source_path.stem + '@source' * repeat_cout + source_path.suffix)
+            source_path.rename(path_rename)
+        else:
+            # 不备份，直接删除原文件
+            source_path.unlink()
         if target_path.exists():
             shutil.move(str(target_path), source_path.parent)
     return True

@@ -21,6 +21,7 @@ def save_config():
         with open('./config.json', 'r', encoding='utf-8') as f:
             config = json.loads(f.read())
         config['override'] = TinyPngTool.override
+        config['backup'] = TinyPngTool.backup
         with open('./config.json', 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
     except Exception as e:
@@ -89,12 +90,22 @@ class MyQMainWindow(QMainWindow):
 
         self.view.cbOverride.setChecked(TinyPngTool.override)
 
+        # 动态添加"备份原文件"复选框
+        from PyQt5.QtWidgets import QCheckBox
+        self.cbBackup = QCheckBox("备份原文件", self.view.centralwidget)
+        self.cbBackup.setObjectName("cbBackup")
+        self.view.gridLayout.addWidget(self.cbBackup, 4, 1, 1, 1)
+        self.cbBackup.setChecked(TinyPngTool.backup)
+        # 根据覆盖选项的初始状态设置备份选项的启用状态
+        self.cbBackup.setEnabled(TinyPngTool.override)
+
         self.view.progressBar.setMinimum(0)
         self.view.progressBar.setMaximum(100)
         self.view.progressBar.setValue(0)
 
         self.view.btnAbout.clicked.connect(self.on_btn_about_click)  # 按钮点击处理
         self.view.cbOverride.stateChanged.connect(self.__on_overide_state_change)
+        self.cbBackup.stateChanged.connect(self.__on_backup_state_change)
 
         # 连接日志信号到槽函数，确保在主线程执行
         self.log_signal.connect(self._do_show_log)
@@ -140,8 +151,18 @@ class MyQMainWindow(QMainWindow):
     def __on_overide_state_change(self, p_state):
         t_isChecked = self.view.cbOverride.isChecked()
         TinyPngTool.override = t_isChecked
+        # 只有在勾选覆盖时，备份选项才可用
+        self.cbBackup.setEnabled(t_isChecked)
+        if not t_isChecked:
+            self.cbBackup.setChecked(False)
         save_config()
-        show_log('复选框点击 {0}'.format(t_isChecked))
+        show_log('覆盖原文件: {0}'.format(t_isChecked))
+
+    def __on_backup_state_change(self, p_state):
+        t_isChecked = self.cbBackup.isChecked()
+        TinyPngTool.backup = t_isChecked
+        save_config()
+        show_log('备份原文件: {0}'.format(t_isChecked))
 
     def scroll_to_end(self):
         # 滚动到最后的处理
