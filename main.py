@@ -71,8 +71,8 @@ class MyQMainWindow(QMainWindow):
     # 需要处理的文件总数量
     __file_total_count = 0
     __file_complete_count = 0
-    # 用于在主线程执行滚动的信号
-    scroll_signal = pyqtSignal()
+    # 用于在主线程更新日志的信号
+    log_signal = pyqtSignal(str)
 
     def __init__(self):
         QMainWindow.__init__(self)
@@ -93,10 +93,11 @@ class MyQMainWindow(QMainWindow):
         self.view.progressBar.setMaximum(100)
         self.view.progressBar.setValue(0)
 
-        # 使用自定义信号而不是 textChanged，避免跨线程警告
-        self.scroll_signal.connect(self.scroll_to_end)
         self.view.btnAbout.clicked.connect(self.on_btn_about_click)  # 按钮点击处理
         self.view.cbOverride.stateChanged.connect(self.__on_overide_state_change)
+
+        # 连接日志信号到槽函数，确保在主线程执行
+        self.log_signal.connect(self._do_show_log)
 
         self.view.textBrowser.setHtml('程序初始化完成')
         show_log('请拖动文件/文件夹到此程序界面中进行压缩')
@@ -107,12 +108,17 @@ class MyQMainWindow(QMainWindow):
 
     def handle_show_log(self, event: EventVo):
         if event.data['type'] == LOG_TYPE_MAIN:
-            self.show_log(event.data['str'])
+            # 发射信号，确保在主线程执行
+            self.log_signal.emit(event.data['str'])
+
+    def _do_show_log(self, p_str: str):
+        """实际执行日志显示（在主线程中）"""
+        self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
+        self.scroll_to_end()
 
     def show_log(self, p_str: str):
-        self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
-        self.emit_scroll_signal()
-        self.emit_scroll_signal()
+        """供外部调用的日志方法"""
+        self.log_signal.emit(p_str)
 
     def handle_file_complete(self):
         self.__file_complete_count += 1
@@ -139,15 +145,8 @@ class MyQMainWindow(QMainWindow):
 
     def scroll_to_end(self):
         # 滚动到最后的处理
-        self.view.textBrowser.moveCursor(QTextCursor.End)
-
-    def emit_scroll_signal(self):
-        # 发射信号，确保在主线程执行滚动
-        self.scroll_signal.emit()
-
-    def emit_scroll_signal(self):
-        # 发射信号，确保在主线程执行滚动
-        self.scroll_signal.emit()
+        scrollbar = self.view.textBrowser.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         mime_data: QMimeData = event.mimeData()
@@ -199,6 +198,7 @@ class MyQMainWindow(QMainWindow):
         # EventCenterAsync.stop()  # 程序退出时候停止全局事件管理器的线程
         self.__qtthread.thread_start(False)
         self.__qtthread.signal.disconnect(self.handle_file_complete)
+        event.accept()
 
 
 class AboutView(QFrame):
@@ -210,8 +210,8 @@ class AboutView(QFrame):
 
 
 class CleanView(QFrame):
-    # 用于在主线程执行滚动的信号
-    scroll_signal = pyqtSignal()
+    # 用于在主线程更新日志的信号
+    log_signal = pyqtSignal(str)
 
     def __init__(self):
         QFrame.__init__(self)
@@ -220,23 +220,27 @@ class CleanView(QFrame):
         self.view.setupUi(self)
         self.setAcceptDrops(True)
 
-        # 使用自定义信号而不是 textChanged，避免跨线程警告
-        self.scroll_signal.connect(self.scroll_to_end)
         self.view.textBrowser.setHtml('请拖动根目录文件夹进行批量删除带@source后缀的文件')
+
+        # 连接日志信号到槽函数，确保在主线程执行
+        self.log_signal.connect(self._do_show_log)
 
         EventCenterSync.add_event(EVENT_SHOW_LOG, self.handle_show_log)
 
     def handle_show_log(self, event: EventVo):
         if event.data['type'] == LOG_TYPE_CLEAN:
-            self.show_log(event.data['str'])
+            # 发射信号，确保在主线程执行
+            self.log_signal.emit(event.data['str'])
+
+    def _do_show_log(self, p_str: str):
+        """实际执行日志显示（在主线程中）"""
+        self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
+        self.scroll_to_end()
 
     def scroll_to_end(self):
         # 滚动到最后的处理
-        self.view.textBrowser.moveCursor(QTextCursor.End)
-
-    def emit_scroll_signal(self):
-        # 发射信号，确保在主线程执行滚动
-        self.scroll_signal.emit()
+        scrollbar = self.view.textBrowser.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         mime_data: QMimeData = event.mimeData()
@@ -259,8 +263,8 @@ class CleanView(QFrame):
             TinyPngTool.clean(t_path)
 
     def show_log(self, p_str: str):
-        self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
-        self.emit_scroll_signal()
+        """供外部调用的日志方法"""
+        self.log_signal.emit(p_str)
 
 
 # PyQt官方API文档
