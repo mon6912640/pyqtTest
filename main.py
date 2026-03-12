@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -12,6 +13,18 @@ import cleanGUI
 import mainGUI2
 import aboutGUI
 from common import *
+
+
+def save_config():
+    """保存配置到 config.json"""
+    try:
+        with open('./config.json', 'r', encoding='utf-8') as f:
+            config = json.loads(f.read())
+        config['override'] = TinyPngTool.override
+        with open('./config.json', 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f'保存配置失败: {e}')
 
 
 class MyThead(QThread):
@@ -58,6 +71,8 @@ class MyQMainWindow(QMainWindow):
     # 需要处理的文件总数量
     __file_total_count = 0
     __file_complete_count = 0
+    # 用于在主线程执行滚动的信号
+    scroll_signal = pyqtSignal()
 
     def __init__(self):
         QMainWindow.__init__(self)
@@ -78,7 +93,8 @@ class MyQMainWindow(QMainWindow):
         self.view.progressBar.setMaximum(100)
         self.view.progressBar.setValue(0)
 
-        self.view.textBrowser.textChanged.connect(self.scroll_to_end)
+        # 使用自定义信号而不是 textChanged，避免跨线程警告
+        self.scroll_signal.connect(self.scroll_to_end)
         self.view.btnAbout.clicked.connect(self.on_btn_about_click)  # 按钮点击处理
         self.view.cbOverride.stateChanged.connect(self.__on_overide_state_change)
 
@@ -95,6 +111,8 @@ class MyQMainWindow(QMainWindow):
 
     def show_log(self, p_str: str):
         self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
+        self.emit_scroll_signal()
+        self.emit_scroll_signal()
 
     def handle_file_complete(self):
         self.__file_complete_count += 1
@@ -116,11 +134,20 @@ class MyQMainWindow(QMainWindow):
     def __on_overide_state_change(self, p_state):
         t_isChecked = self.view.cbOverride.isChecked()
         TinyPngTool.override = t_isChecked
+        save_config()
         show_log('复选框点击 {0}'.format(t_isChecked))
 
     def scroll_to_end(self):
         # 滚动到最后的处理
         self.view.textBrowser.moveCursor(QTextCursor.End)
+
+    def emit_scroll_signal(self):
+        # 发射信号，确保在主线程执行滚动
+        self.scroll_signal.emit()
+
+    def emit_scroll_signal(self):
+        # 发射信号，确保在主线程执行滚动
+        self.scroll_signal.emit()
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         mime_data: QMimeData = event.mimeData()
@@ -183,6 +210,9 @@ class AboutView(QFrame):
 
 
 class CleanView(QFrame):
+    # 用于在主线程执行滚动的信号
+    scroll_signal = pyqtSignal()
+
     def __init__(self):
         QFrame.__init__(self)
 
@@ -190,7 +220,8 @@ class CleanView(QFrame):
         self.view.setupUi(self)
         self.setAcceptDrops(True)
 
-        self.view.textBrowser.textChanged.connect(self.scroll_to_end)
+        # 使用自定义信号而不是 textChanged，避免跨线程警告
+        self.scroll_signal.connect(self.scroll_to_end)
         self.view.textBrowser.setHtml('请拖动根目录文件夹进行批量删除带@source后缀的文件')
 
         EventCenterSync.add_event(EVENT_SHOW_LOG, self.handle_show_log)
@@ -202,6 +233,10 @@ class CleanView(QFrame):
     def scroll_to_end(self):
         # 滚动到最后的处理
         self.view.textBrowser.moveCursor(QTextCursor.End)
+
+    def emit_scroll_signal(self):
+        # 发射信号，确保在主线程执行滚动
+        self.scroll_signal.emit()
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         mime_data: QMimeData = event.mimeData()
@@ -225,6 +260,7 @@ class CleanView(QFrame):
 
     def show_log(self, p_str: str):
         self.view.textBrowser.append(p_str.encode('utf-8').decode('utf-8'))
+        self.emit_scroll_signal()
 
 
 # PyQt官方API文档
